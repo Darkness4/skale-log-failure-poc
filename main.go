@@ -114,13 +114,13 @@ func main() {
 	done := make(chan struct{})
 
 	// Method 1: Using SubscribeFilterLogs from go-ethereum
-	// go watchWithEthereum(ctx, contractAddress, ws, eventExampleContract, ready, done)
+	go watchWithEthereum(ctx, contractAddress, ethWS, eventExampleContract, ready, done)
 
 	// Method 2: Using WatchNewEvent from the contract binding
 	// go watchWithContractBinding(ctx, eventExampleContract, ready, done)
 
 	// Method 3: Using raw JSON-RPC calls
-	go watchWithCall(ctx, contractAddress, ethWS, eventExampleContract, ready, done)
+	// go watchWithCall(ctx, contractAddress, ethWS, eventExampleContract, ready, done)
 
 	select {
 	case <-ready:
