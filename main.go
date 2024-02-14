@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	exampleabi "event-poc/abi/example"
 	"event-poc/intercept"
 	"flag"
@@ -20,7 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -29,7 +29,6 @@ var rpcURL = flag.String("rpc", "http://localhost:8545", "Ethereum RPC URL")
 var wsURL = flag.String("ws", "ws://localhost:8546", "Ethereum WebSocket URL")
 var hexpk = flag.String("pk", "", "Private key")
 var withHTTPLog = flag.Bool("httplog", false, "Log HTTP requests and responses")
-var withWSLog = flag.Bool("wslog", false, "Log WebSocket messages")
 
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).With().Caller().Logger()
@@ -44,9 +43,6 @@ func main() {
 		options = append(options, rpc.WithHTTPClient(&http.Client{
 			Transport: &intercept.Transport{},
 		}))
-	}
-	if *withWSLog {
-		options = append(options, rpc.WithWebsocketDialer(websocket.Dialer{}))
 	}
 	rpcClient, err := rpc.DialOptions(
 		ctx,
@@ -114,13 +110,13 @@ func main() {
 	done := make(chan struct{})
 
 	// Method 1: Using SubscribeFilterLogs from go-ethereum
-	go watchWithEthereum(ctx, contractAddress, ethWS, eventExampleContract, ready, done)
+	// go watchWithEthereum(ctx, contractAddress, ethWS, eventExampleContract, ready, done)
 
 	// Method 2: Using WatchNewEvent from the contract binding
 	// go watchWithContractBinding(ctx, eventExampleContract, ready, done)
 
 	// Method 3: Using raw JSON-RPC calls
-	// go watchWithCall(ctx, contractAddress, ethWS, eventExampleContract, ready, done)
+	go watchWithCall(ctx, contractAddress, ethWS, eventExampleContract, ready, done)
 
 	select {
 	case <-ready:
@@ -302,7 +298,11 @@ func watchWithCall(
 		case <-ctx.Done():
 			return
 		case l := <-logs:
-			fmt.Println("Log received:", l)
+			b, err := json.MarshalIndent(l, "", "  ")
+			if err != nil {
+				panic(err)
+			}
+			fmt.Println("Log received:", string(b))
 			// e, err := eventExampleContract.ParseNewEvent(l)
 			// if err != nil {
 			// 	log.Err(err).Msg("Failed to parse event")
